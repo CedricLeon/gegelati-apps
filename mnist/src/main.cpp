@@ -9,37 +9,36 @@
 
 #include "mnist.h"
 
-void getKey(std::atomic<bool>& exit, std::atomic<bool>& printStats) {
+void getKey(std::atomic<bool>& exit)
+{
 	std::cout << std::endl;
 	std::cout << "Press `q` then [Enter] to exit." << std::endl;
-	std::cout << "Press `p` then [Enter] to print classification statistics of the best root." << std::endl;
 	std::cout.flush();
 
 	exit = false;
 
-	while (!exit) {
-		char c;
-		std::cin >> c;
-		switch (c) {
-		case 'q':
-		case 'Q':
-			exit = true;
-			break;
-		case 'p':
-		case 'P':
-			printStats = true;
-			break;
-		default:
-			printf("Invalid key '%c' pressed.", c);
-			std::cout.flush();
-		}
-	}
+    while (!exit)
+    {
+        char c;
+        std::cin >> c;
+        switch (c)
+        {
+            case 'q':
+            case 'Q':
+                exit = true;
+                break;
+            default:
+                printf("Invalid key '%c' pressed.", c);
+                std::cout.flush();
+        }
+    }
 
 	printf("Program will terminate at the end of next generation.\n");
 	std::cout.flush();
 }
 
-int main() {
+int main(int argc, char* argv[])
+{
 	std::cout << "Start MNIST application." << std::endl;
 
 	// Create the instruction set for programs
@@ -51,7 +50,6 @@ int main() {
 	auto max = [](double a, double b)->double {return std::max(a, b); };
 	auto ln = [](double a)->double {return std::log(a); };
 	auto exp = [](double a)->double {return std::exp(a); };
-	auto multByConst = [](double a, Data::Constant c)->double {return a * (double)c / 10.0; };
 	auto sobelMagn = [](const double a[3][3])->double {
 		double result = 0.0;
 		double gx =
@@ -83,9 +81,18 @@ int main() {
 	set.add(*(new Instructions::LambdaInstruction<double, double>(max)));
 	set.add(*(new Instructions::LambdaInstruction<double>(exp)));
 	set.add(*(new Instructions::LambdaInstruction<double>(ln)));
-	set.add(*(new Instructions::LambdaInstruction<double, Data::Constant>(multByConst)));
 	set.add(*(new Instructions::LambdaInstruction<const double[3][3]>(sobelMagn)));
 	set.add(*(new Instructions::LambdaInstruction<const double[3][3]>(sobelDir)));
+
+    size_t seed = 0;
+    if (argc > 1)
+    {
+        seed = atoi(argv[1]);
+    }
+    else
+    {
+        std::cout << "Seed was not precised, using default value: " << seed << std::endl;
+    }
 
 	// Set the parameters for the learning process.
 	// (Controls mutations probability, program lengths, and graph size
@@ -97,8 +104,9 @@ int main() {
 	params.nbGenerations = NB_GENERATIONS;
 #endif // !NB_GENERATIONS
 
+
 	// Instantiate the LearningEnvironment
-	MNIST mnistLE;
+	MNIST mnistLE(seed);
 
 	std::cout << "Number of threads: " << params.nbThreads << std::endl;
 
@@ -110,17 +118,17 @@ int main() {
 	File::TPGGraphDotExporter dotExporter("out_0000.dot", la.getTPGGraph());
 
 	// Start a thread for controlling the loop
-#ifndef NO_CONSOLE_CONTROL
+/*#ifndef NO_CONSOLE_CONTROL
 	std::atomic<bool> exitProgram = true; // (set to false by other thread) 
 	std::atomic<bool> printStats = false;
 
-	std::thread threadKeyboard(getKey, std::ref(exitProgram), std::ref(printStats));
+	std::thread threadKeyboard(getKey, std::ref(exitProgram));
 
 	while (exitProgram); // Wait for other thread to print key info.
 #else 
 	std::atomic<bool> exitProgram = false; // (set to false by other thread) 
 	std::atomic<bool> printStats = false;
-#endif
+#endif*/
 
 	// Adds a logger to the LA (to get statistics on learning) on std::cout
 	Log::LABasicLogger logCout(la);
@@ -130,33 +138,31 @@ int main() {
 	stats.open("bestPolicyStats.md");
 	Log::LAPolicyStatsLogger logStats(la, stats);
 
-	// Export parameters before starting training.
-	// These may differ from imported parameters because of LE or machine specific
-	// settings such as thread count of number of actions.
-	File::ParametersParser::writeParametersToJson("exported_params.json", params);
+    std::string const fileClassificationTableName("/home/cleonard/dev/gegelati-apps/mnist/fileClassificationTable.txt");
 
 	// Train for NB_GENERATIONS generations
-	for (int i = 0; i < params.nbGenerations && !exitProgram; i++) {
-		char buff[13];
+	for (int i = 0; i < (int) params.nbGenerations /*&& !exitProgram*/; i++)
+	{
+        // Save best generation policy
+		char buff[20];
 		sprintf(buff, "out_%04d.dot", i);
 		dotExporter.setNewFilePath(buff);
 		dotExporter.print();
 
+        // Train
 		la.trainOneGeneration(i);
 
-		if (printStats) {
-			mnistLE.printClassifStatsTable(la.getTPGGraph().getEnvironment(), la.getBestRoot().first);
+        // Print Classification Table
+        mnistLE.printClassifStatsTable(la.getTPGGraph().getEnvironment(), la.getTPGGraph().getRootVertices().at(0), i, fileClassificationTableName, false);
+
+/*		if (printStats) {
+			mnistLE.printClassifStatsTable(la.getTPGGraph().getEnvironment(), la.getBestRoot().first, i, fileClassificationTableName);
 			printStats = false;
-		}
+		}*/
 	}
 
 	// Keep best policy
 	la.keepBestPolicy();
-
-	// Clear introns instructions
-	la.getTPGGraph().clearProgramIntrons();
-
-	// Export the graph
 	dotExporter.setNewFilePath("out_best.dot");
 	dotExporter.print();
 
@@ -172,18 +178,18 @@ int main() {
 	stats.close();
 
 	// Print stats one last time
-	mnistLE.printClassifStatsTable(la.getTPGGraph().getEnvironment(), la.getTPGGraph().getRootVertices().at(0));
+	//mnistLE.printClassifStatsTable(la.getTPGGraph().getEnvironment(), la.getTPGGraph().getRootVertices().at(0), (int) params.nbGenerations, fileClassificationTableName, false);
 
 	// cleanup
 	for (unsigned int i = 0; i < set.getNbInstructions(); i++) {
 		delete (&set.getInstruction(i));
 	}
 
-#ifndef NO_CONSOLE_CONTROL
+/*#ifndef NO_CONSOLE_CONTROL
 	// Exit the thread
 	std::cout << "Exiting program, press a key then [enter] to exit if nothing happens.";
 	threadKeyboard.join();
-#endif
+#endif*/
 
 	return 0;
 }

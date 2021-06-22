@@ -22,10 +22,13 @@ protected:
 	Mutator::RNG rng;
 
 	/// Current image provided to the LearningAgent
-	Data::Array2DWrapper<double> currentImage;
+	Data::PrimitiveTypeArray2D<double> currentImage;
 
 	/// Current index of the image in the dataset.
 	uint64_t currentIndex;
+
+    /// Seed of the training
+    size_t seed;
 
 	/**
 	* \brief Change the image currently available in the dataSources of the LearningEnvironment.
@@ -43,7 +46,7 @@ public:
 	* Loads the dataset on construction. Sets the LearningMode to TRAINING.
 	* Sets the score to 0.
 	*/
-	MNIST();
+	MNIST(size_t seed);
 
 	/// Inherited via LearningEnvironment
 	virtual void doAction(uint64_t actionID) override;
@@ -95,7 +98,7 @@ public:
 	* \param[in] result the Map containing the list of roots within a TPGGraph,
 	* with their score in ascending order.
 	*/
-	void printClassifStatsTable(const Environment& env, const TPG::TPGVertex* bestRoot);
+	void printClassifStatsTable(const Environment& env, const TPG::TPGVertex* bestRoot, const int numGen, std::string const& outputFile, bool readable);
 };
 
 #endif
