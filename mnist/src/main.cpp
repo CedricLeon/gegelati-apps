@@ -143,11 +143,11 @@ int main(int argc, char* argv[])
 	// Train for NB_GENERATIONS generations
 	for (int i = 0; i < (int) params.nbGenerations /*&& !exitProgram*/; i++)
 	{
-        // Save best generation policy
+/*        // Save best generation policy
 		char buff[20];
 		sprintf(buff, "out_%04d.dot", i);
 		dotExporter.setNewFilePath(buff);
-		dotExporter.print();
+		dotExporter.print();*/
 
         // Train
 		la.trainOneGeneration(i);

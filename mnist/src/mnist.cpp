@@ -113,7 +113,8 @@ void MNIST::printClassifStatsTable(const Environment& env, const TPG::TPGVertex*
 	uint64_t nbPerClass[10] = { 0 };
 
 	const int TOTAL_NB_IMAGE = 10000;
-	for (int nbImage = 0; nbImage < TOTAL_NB_IMAGE; nbImage++) {
+	for (int nbImage = 0; nbImage < TOTAL_NB_IMAGE; nbImage++)
+	{
 		// Get answer
 		uint8_t currentLabel = this->getCurrentImageLabel();
 		nbPerClass[currentLabel]++;
@@ -159,7 +160,7 @@ void MNIST::printClassifStatsTable(const Environment& env, const TPG::TPGVertex*
     }
     else
     {
-        FILE* file = fopen("/home/cleonard/dev/gegelati-apps/mnist/fileClassificationTable.txt", "w" ); // Open file for writing
+        FILE* file = fopen(outputFile.c_str(), "w" ); // Open file for writing
         // Print the table
         fprintf(file, "\t");
         for (int i = 0; i < 10; i++) {
